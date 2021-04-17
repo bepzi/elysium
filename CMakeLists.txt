@@ -81,7 +81,7 @@ target_link_libraries(Elysium
   # juce::juce_gui_extra
   juce::juce_opengl
 
-  elysium-rust-core
+  elysium_rust
 
   PUBLIC
   juce::juce_recommended_config_flags
