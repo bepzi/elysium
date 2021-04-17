@@ -1,5 +1,7 @@
 #include "elysium.hpp"
 
+#include "elysium_rust.hpp"
+
 using namespace juce;
 
 namespace elysium {
@@ -25,7 +27,7 @@ void Elysium::processBlock(AudioBuffer<float> &buffer, MidiBuffer &midiMessages)
 {
     ScopedNoDenormals noDenormals;
     ignoreUnused(midiMessages);
-    buffer.clear();
+    process_block(buffer, getSampleRate());
 }
 
 double Elysium::getTailLengthSeconds() const

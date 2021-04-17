@@ -22,6 +22,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ==================================================
 
 add_subdirectory(JUCE)
+add_subdirectory(src/core)
 
 # ==================================================
 
@@ -40,11 +41,16 @@ juce_add_plugin(Elysium
   LV2_URI "http://bepzi.com/elysium"
   LV2_WANTS_LATENCY FALSE)
 
+set_target_properties(Elysium PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF)
+
 target_sources(Elysium PRIVATE
-  src/elysium.cpp)
+  src/ui/elysium.cpp)
 
 target_include_directories(Elysium PUBLIC
-  src)
+  src/ui)
 
 target_compile_definitions(Elysium PUBLIC
   JUCE_DISPLAY_SPLASH_SCREEN=0
@@ -61,7 +67,7 @@ target_compile_definitions(Elysium PUBLIC
 
 target_link_libraries(Elysium
   PRIVATE
-  # juce::juce_audio_basics
+  juce::juce_audio_basics
   juce::juce_audio_devices
   # juce::juce_audio_formats
   juce::juce_audio_plugin_client
@@ -75,7 +81,10 @@ target_link_libraries(Elysium
   # juce::juce_gui_extra
   juce::juce_opengl
 
+  elysium-rust-core
+
   PUBLIC
   juce::juce_recommended_config_flags
   juce::juce_recommended_lto_flags
-  juce::juce_recommended_warning_flags)
+  # juce::juce_recommended_warning_flags
+  )

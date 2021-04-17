@@ -9,6 +9,8 @@ namespace elysium {
 class Elysium : public juce::AudioProcessor
 {
 public:
+    ELYSIUM_DISABLE_COPY_MOVE(Elysium)
+
     Elysium();
 
     const juce::String getName() const override;
@@ -44,7 +46,6 @@ public:
     void setStateInformation(const void *data, int sizeInBytes) override;
 
 private:
-    ELYSIUM_DISABLE_COPY_MOVE(Elysium)
 };
 
 } // namespace elysium
