@@ -1,10 +1,12 @@
+use wmidi::MidiMessage;
+
 mod processor;
 use processor::ElysiumAudioProcessor;
 
 #[cxx::bridge(namespace = "elysium::ffi")]
 mod ffi {
     unsafe extern "C++" {
-        include!("audio_buffer.hpp");
+        include!("audio_basics.hpp");
 
         type AudioBufferF32;
 
@@ -23,8 +25,14 @@ mod ffi {
         fn getArrayOfWritePointers(self: Pin<&mut AudioBufferF32>) -> *mut *mut f32;
 
         /*
-                fn clear(self: Pin<&mut AudioBufferF32>);
+              fn clear(self: Pin<&mut AudioBufferF32>);
         */
+
+        // ===================================================
+
+        type MidiBufferIterator;
+
+        fn next(self: Pin<&mut MidiBufferIterator>) -> &[u8];
     }
 
     extern "Rust" {
@@ -41,7 +49,11 @@ mod ffi {
         );
 
         #[cxx_name = "processBlock"]
-        fn process_block(self: &mut ElysiumAudioProcessor, buf: Pin<&mut AudioBufferF32>);
+        fn process_block(
+            self: &mut ElysiumAudioProcessor,
+            buf: Pin<&mut AudioBufferF32>,
+            midi: Pin<&mut MidiBufferIterator>,
+        );
     }
 }
 

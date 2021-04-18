@@ -1,17 +1,20 @@
 use core::pin::Pin;
 use rand::rngs::ThreadRng;
 use rand::Rng;
+use std::convert::TryFrom;
 use std::ptr;
 
 use crate::ffi;
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 const DEFAULT_FREQUENCY: f64 = 440.0;
+const TWO_PI: f64 = std::f64::consts::PI * 2.0;
 
 pub struct ElysiumAudioProcessor {
     rng: ThreadRng,
     sample_rate: f64,
-    // TODO: Make a dedicated Phasor struct
+
+    // TODO: Make a dedicated Phasor state struct
     freq: f64,
     angle_delta: f64,
     current_angle: f64,
@@ -30,28 +33,24 @@ impl ElysiumAudioProcessor {
 
     pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
-        self.angle_delta = (self.freq / self.sample_rate) * 2.0 * std::f64::consts::PI;
+        self.angle_delta = (self.freq / self.sample_rate) * TWO_PI;
     }
 
-    pub fn process_block(&mut self, buf: Pin<&mut ffi::AudioBufferF32>) {
-        let channels = {
-            let count = buf.get_num_channels();
-            if count < 0 {
-                0
-            } else {
-                count as usize
+    pub fn process_block(
+        &mut self,
+        buf: Pin<&mut ffi::AudioBufferF32>,
+        mut midi: Pin<&mut ffi::MidiBufferIterator>,
+    ) {
+        let mut raw_midi_message: &[u8] = midi.as_mut().next();
+        while !raw_midi_message.is_empty() {
+            if let Ok(message) = wmidi::MidiMessage::try_from(raw_midi_message) {
+                println!("MIDI MESSAGE: ${:?}", message);
             }
-        };
+            raw_midi_message = midi.as_mut().next();
+        }
 
-        let samples = {
-            let count = buf.get_num_samples();
-            if count < 0 {
-                0
-            } else {
-                count as usize
-            }
-        };
-
+        let channels = buf.get_num_channels().max(0) as usize;
+        let samples = buf.get_num_samples().max(0) as usize;
         let raw_array = buf.get_array_of_write_pointers();
 
         for j in 0..samples {

@@ -20,16 +20,20 @@ add_custom_command(
 
 add_library(elysium_rust STATIC
   ${cxxbridge-generated-cpp}
-  wrappers/audio_buffer.cpp)
+  wrappers/audio_basics.cpp)
 
-target_include_directories(elysium_rust
+target_include_directories(elysium_rust PUBLIC
   # Other people want to find our generated C++ bindings to Rust
-  # when they link to us, but we don't need them ourselves.
-  INTERFACE ${cargo-target-dir}
+  # when they link to us.
+  ${cargo-target-dir}
 
-  # We need to find our own headers to wrap JUCE C++ into bindable C++,
-  # and the generated bindings will need to include them too.
-  PUBLIC wrappers)
+  # And we need our own wrapper code to know about cxxbridge's Rust
+  # built-in types bindings.
+  ${cargo-target-dir}/cxxbridge
+
+  # We need to find our own headers to wrap JUCE C++ into bindable
+  # C++, and the generated bindings will include them too.
+  wrappers)
 
 set_target_properties(elysium_rust PROPERTIES
   CXX_STANDARD 17

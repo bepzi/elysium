@@ -12,6 +12,7 @@ crate_type = [ "staticlib" ]
 [dependencies]
 cxx = "1"
 rand = "0.8"
+wmidi = "4"
 
 [build-dependencies]
 cxx-build = "1"

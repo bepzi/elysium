@@ -26,7 +26,8 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
 {
     ScopedNoDenormals noDenormals;
     ignoreUnused(midiMessages);
-    impl->processBlock(buffer);
+    ffi::MidiBufferIterator iter = { midiMessages.cbegin(), midiMessages.cend() };
+    impl->processBlock(buffer, iter);
 }
 
 double ElysiumAudioProcessor::getTailLengthSeconds() const
