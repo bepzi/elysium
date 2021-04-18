@@ -9,7 +9,7 @@ set(cxxbridge-generated-hpp "${cargo-target-dir}/elysium_rust.hpp")
 
 file(GLOB_RECURSE rust-sources *.rs)
 add_custom_command(
-  OUTPUT ${cxxbridge-generated-cpp} ${cxxbridge-generated-hpp} ${compiled-rust-lib-path}
+  OUTPUT ${cxxbridge-generated-cpp} ${cxxbridge-generated-hpp} ${rust-lib-path}
   MAIN_DEPENDENCY src/lib.rs
   DEPENDS ${rust-sources}
   COMMAND CARGO_TARGET_DIR=${cargo-target-dir} cargo build --${build-type}

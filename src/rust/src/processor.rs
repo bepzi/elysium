@@ -3,16 +3,26 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::ptr;
 
+const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
+
 use crate::ffi;
 
 pub struct ElysiumAudioProcessor {
     rng: ThreadRng,
+    sample_rate: f64,
 }
 
 impl ElysiumAudioProcessor {
     pub fn new() -> Self {
         Self {
             rng: rand::thread_rng(),
+            sample_rate: DEFAULT_SAMPLE_RATE,
+        }
+    }
+
+    pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
+        if sample_rate > 0.0 {
+            self.sample_rate = sample_rate;
         }
     }
 

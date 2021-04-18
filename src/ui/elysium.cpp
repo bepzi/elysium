@@ -17,7 +17,7 @@ const String ElysiumAudioProcessor::getName() const
 
 void ElysiumAudioProcessor::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 {
-    ignoreUnused(sampleRate, maximumExpectedSamplesPerBlock);
+    impl->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
 void ElysiumAudioProcessor::releaseResources() { }
