@@ -6,7 +6,7 @@ namespace elysium {
 
 Elysium::Elysium()
     : AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true)),
-      rustPlugin(ffi::createElysiumAudioProcessor())
+      impl(ffi::createElysiumAudioProcessor())
 {
 }
 
@@ -26,7 +26,7 @@ void Elysium::processBlock(AudioBuffer<float> &buffer, MidiBuffer &midiMessages)
 {
     ScopedNoDenormals noDenormals;
     ignoreUnused(midiMessages);
-    rustPlugin->processBlock(buffer);
+    impl->processBlock(buffer);
 }
 
 double Elysium::getTailLengthSeconds() const

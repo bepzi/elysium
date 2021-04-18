@@ -47,7 +47,7 @@ public:
     void setStateInformation(const void *data, int sizeInBytes) override;
 
 private:
-    rust::Box<ffi::ElysiumAudioProcessor> rustPlugin;
+    rust::Box<ffi::ElysiumAudioProcessor> impl;
 };
 
 } // namespace elysium
