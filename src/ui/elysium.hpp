@@ -1,18 +1,18 @@
 #pragma once
 
-#include "utils.hpp"
 #include "elysium_rust.hpp"
+#include "utils.hpp"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace elysium {
 
-class Elysium : public juce::AudioProcessor
+class ElysiumAudioProcessor : public juce::AudioProcessor
 {
 public:
-    ELYSIUM_DISABLE_COPY_MOVE(Elysium)
+    ELYSIUM_DISABLE_COPY_MOVE(ElysiumAudioProcessor)
 
-    Elysium();
+    ElysiumAudioProcessor();
 
     const juce::String getName() const override;
 
