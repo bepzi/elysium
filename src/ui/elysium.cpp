@@ -1,13 +1,12 @@
 #include "elysium.hpp"
 
-#include "elysium_rust.hpp"
-
 using namespace juce;
 
 namespace elysium {
 
 Elysium::Elysium()
-    : AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true))
+    : AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true)),
+      rustPlugin(ffi::createElysiumAudioProcessor())
 {
 }
 
@@ -27,7 +26,7 @@ void Elysium::processBlock(AudioBuffer<float> &buffer, MidiBuffer &midiMessages)
 {
     ScopedNoDenormals noDenormals;
     ignoreUnused(midiMessages);
-    process_block(buffer, getSampleRate());
+    rustPlugin->processBlock(buffer);
 }
 
 double Elysium::getTailLengthSeconds() const

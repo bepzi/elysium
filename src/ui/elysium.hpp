@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils.hpp"
+#include "elysium_rust.hpp"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -46,6 +47,7 @@ public:
     void setStateInformation(const void *data, int sizeInBytes) override;
 
 private:
+    rust::Box<ffi::ElysiumAudioProcessor> rustPlugin;
 };
 
 } // namespace elysium
