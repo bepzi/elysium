@@ -1,4 +1,8 @@
-set(build-type $<IF:$<CONFIG:Debug>,debug,release>)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(build-type debug)
+else()
+  set(build-type release)
+endif()
 
 set(rust-lib-name "libelysium${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set(cargo-target-dir "${CMAKE_CURRENT_BINARY_DIR}/target")
