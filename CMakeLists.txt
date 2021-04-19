@@ -21,7 +21,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ==================================================
 
-add_subdirectory(JUCE)
+add_subdirectory(third_party/JUCE)
 add_subdirectory(src/rust)
 
 # ==================================================
