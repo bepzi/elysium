@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
  #include <windows.h>
@@ -50,7 +51,7 @@ int main(int argc, char* argv[])
 
     if (ttlFn != NULL)
     {
-        char basename[strlen(argv[1])+1];
+        char *basename = (char *)calloc(strlen(argv[1]) + 1, sizeof(*basename));
 
 #ifdef TTL_GENERATOR_WINDOWS
         if (char* base2 = strrchr(argv[1], '\\'))
@@ -67,6 +68,7 @@ int main(int argc, char* argv[])
         printf("Generate ttl data for '%s', basename: '%s'\n", argv[1], basename);
 
         ttlFn(basename);
+        free(basename);
     }
     else
         printf("Failed to find 'lv2_generate_ttl' function\n");
