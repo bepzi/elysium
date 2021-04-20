@@ -1,6 +1,13 @@
 #include "elysium.hpp"
 
+#include <cstdio>
+
 using namespace juce;
+
+static constexpr auto *THREAD_SAFETY_WARNING =
+        "The audio thread failed to get exclusive access to the "
+        "AudioProcessor; this is probably because the host is not "
+        "correctly handling potential data races.";
 
 namespace elysium {
 
@@ -17,6 +24,7 @@ const String ElysiumAudioProcessor::getName() const
 
 void ElysiumAudioProcessor::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 {
+    std::lock_guard l(implLock);
     impl->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
@@ -24,10 +32,24 @@ void ElysiumAudioProcessor::releaseResources() { }
 
 void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer &midiMessages)
 {
-    ScopedNoDenormals noDenormals;
-    ignoreUnused(midiMessages);
+    if (ELYSIUM_UNLIKELY(!implLock.try_lock())) {
+        // We can't allow access to the Rust implementation if another
+        // thread is already accessing it. Rust assumes we won't screw
+        // up its mutability and aliasing guarantees.
+        //
+        // Note that we deliberately only try_lock(), because we can't
+        // block the audio thread.
+        std::fprintf(stderr, "%s\n", THREAD_SAFETY_WARNING);
+        return;
+    }
+
     ffi::MidiBufferIterator iter = { midiMessages.cbegin(), midiMessages.cend() };
-    impl->processBlock(buffer, iter);
+    {
+        ScopedNoDenormals noDenormals;
+        impl->processBlock(buffer, iter);
+    }
+
+    implLock.unlock();
 }
 
 double ElysiumAudioProcessor::getTailLengthSeconds() const
