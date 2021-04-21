@@ -53,11 +53,7 @@ int main(int argc, char* argv[])
     {
         char *basename = (char *)calloc(strlen(argv[1]) + 1, sizeof(*basename));
 
-#ifdef TTL_GENERATOR_WINDOWS
-        if (char* base2 = strrchr(argv[1], '\\'))
-#else
         if (char* base2 = strrchr(argv[1], '/'))
-#endif
         {
             strcpy(basename, base2+1);
             basename[strrchr(base2, '.')-base2-1] = '\0';
