@@ -1,5 +1,3 @@
-use wmidi::MidiMessage;
-
 mod processor;
 use processor::ElysiumAudioProcessor;
 
@@ -7,19 +5,6 @@ use processor::ElysiumAudioProcessor;
 mod ffi {
     unsafe extern "C++" {
         include!("audio_basics.hpp");
-
-        type AudioBufferF32;
-
-        #[rust_name = "get_num_channels"]
-        fn getNumChannels(self: &AudioBufferF32) -> i32;
-
-        #[rust_name = "get_num_samples"]
-        fn getNumSamples(self: &AudioBufferF32) -> i32;
-
-        #[rust_name = "get_array_of_write_pointers"]
-        fn getArrayOfWritePointers(self: Pin<&mut AudioBufferF32>) -> *mut *mut f32;
-
-        // ===================================================
 
         type MidiBufferIterator;
 
@@ -42,7 +27,7 @@ mod ffi {
         #[cxx_name = "processBlock"]
         fn process_block(
             self: &mut ElysiumAudioProcessor,
-            buf: Pin<&mut AudioBufferF32>,
+            audio: &mut [&mut [f32]],
             midi: Pin<&mut MidiBufferIterator>,
         );
     }

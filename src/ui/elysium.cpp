@@ -43,10 +43,18 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
         return;
     }
 
-    ffi::MidiBufferIterator iter = { midiMessages.cbegin(), midiMessages.cend() };
+    std::vector<rust::Slice<float>> channels;
+    channels.reserve(buffer.getNumChannels());
+    for (int i = 0; i < buffer.getNumChannels(); ++i) {
+        channels.push_back({ buffer.getWritePointer(i),
+                             static_cast<size_t>(std::max(buffer.getNumSamples(), 0)) });
+    }
+
+    rust::Slice<rust::Slice<float>> audioData = { channels.data(), channels.size() };
+    ffi::MidiBufferIterator midiIter = { midiMessages.cbegin(), midiMessages.cend() };
     {
         ScopedNoDenormals noDenormals;
-        impl->processBlock(buffer, iter);
+        impl->processBlock(audioData, midiIter);
     }
 
     implLock.unlock();
