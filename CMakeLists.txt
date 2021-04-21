@@ -88,3 +88,9 @@ target_link_libraries(Elysium
   juce::juce_recommended_lto_flags
   # juce::juce_recommended_warning_flags
   )
+
+if(WIN32)
+  target_link_libraries(Elysium PRIVATE
+    bcrypt
+    userenv)
+endif()

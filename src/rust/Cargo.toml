@@ -16,3 +16,7 @@ wmidi = "4"
 
 [build-dependencies]
 cxx-build = "1"
+
+[profile.release]
+debug = true
+lto = true
