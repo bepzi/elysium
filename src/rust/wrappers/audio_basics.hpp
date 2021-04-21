@@ -9,8 +9,6 @@
 namespace elysium {
 namespace ffi {
 
-using AudioBufferF32 = juce::AudioBuffer<float>;
-
 struct MidiBufferIterator
 {
     juce::MidiBufferIterator iter;

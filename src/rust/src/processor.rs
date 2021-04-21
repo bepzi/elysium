@@ -2,7 +2,6 @@ use core::pin::Pin;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::convert::TryFrom;
-use std::ptr;
 
 use crate::ffi;
 
@@ -40,7 +39,7 @@ impl ElysiumAudioProcessor {
     // Will be called on the audio thread.
     pub fn process_block(
         &mut self,
-        buf: Pin<&mut ffi::AudioBufferF32>,
+        audio: &mut [&mut [f32]],
         mut midi: Pin<&mut ffi::MidiBufferIterator>,
     ) {
         let mut raw_midi_message: &[u8] = midi.as_mut().next();
@@ -51,20 +50,13 @@ impl ElysiumAudioProcessor {
             raw_midi_message = midi.as_mut().next();
         }
 
-        let channels = buf.get_num_channels().max(0) as usize;
-        let samples = buf.get_num_samples().max(0) as usize;
-        let raw_array = buf.get_array_of_write_pointers();
-
-        for j in 0..samples {
+        for j in 0..audio[0].len() {
             let white_noise = (self.rng.gen::<f64>() * 2.0) - 1.0;
             let sine_sample = self.current_angle.sin();
             self.current_angle += self.angle_delta;
 
-            for i in 0..channels {
-                unsafe {
-                    let channel = *raw_array.add(i);
-                    ptr::write(channel.add(j), ((white_noise + sine_sample) * 0.01) as f32);
-                }
+            for i in 0..audio.len() {
+                audio[i][j] = ((white_noise + sine_sample) * 0.01) as f32;
             }
         }
     }
