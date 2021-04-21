@@ -46,6 +46,9 @@ public:
 
     void setStateInformation(const void *data, int sizeInBytes) override;
 
+protected:
+    bool isBusesLayoutSupported(const BusesLayout &layout) const override;
+
 private:
     rust::Box<ffi::ElysiumAudioProcessor> impl;
 };

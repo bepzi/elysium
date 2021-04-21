@@ -91,6 +91,11 @@ void ElysiumAudioProcessor::setStateInformation(const void *data, int sizeInByte
     ignoreUnused(data, sizeInBytes);
 }
 
+bool ElysiumAudioProcessor::isBusesLayoutSupported(const BusesLayout &layout) const
+{
+    return layout.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+}
+
 } // namespace elysium
 
 AudioProcessor *JUCE_CALLTYPE createPluginFilter()
