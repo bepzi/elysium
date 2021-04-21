@@ -31,11 +31,13 @@ impl ElysiumAudioProcessor {
         }
     }
 
+    // Will be called on the main thread.
     pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
         self.angle_delta = (self.freq / self.sample_rate) * TWO_PI;
     }
 
+    // Will be called on the audio thread.
     pub fn process_block(
         &mut self,
         buf: Pin<&mut ffi::AudioBufferF32>,

@@ -16,17 +16,8 @@ mod ffi {
         #[rust_name = "get_num_samples"]
         fn getNumSamples(self: &AudioBufferF32) -> i32;
 
-        /*
-                #[rust_name = "get_array_of_read_pointers"]
-                fn getArrayOfReadPointers(self: &AudioBufferF32) -> *mut *const f32;
-        */
-
         #[rust_name = "get_array_of_write_pointers"]
         fn getArrayOfWritePointers(self: Pin<&mut AudioBufferF32>) -> *mut *mut f32;
-
-        /*
-              fn clear(self: Pin<&mut AudioBufferF32>);
-        */
 
         // ===================================================
 

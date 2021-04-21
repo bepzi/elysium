@@ -37,3 +37,19 @@
 #define ELYSIUM_DISABLE_COPY_MOVE(_ClassName)                                                      \
     ELYSIUM_DISABLE_COPY(_ClassName)                                                               \
     ELYSIUM_DISABLE_MOVE(_ClassName)
+
+/*!
+ * \brief Hints the compiler that a certain statement is likely, or
+ * unlikely to be executed.
+ *
+ * Useful for guiding compiler optimizations in highly
+ * performance-sensitive code. Most of the time though, you don't need
+ * to use this.
+ */
+#if defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
+#    define ELYSIUM_LIKELY(_x) __builtin_expect(!!(_x), 1)
+#    define ELYSIUM_UNLIKELY(_x) __builtin_expect(!!(_x), 0)
+#else // Compiler probably doesn't support __builtin_expect
+#    define ELYSIUM_LIKELY(_x) _x
+#    define ELYSIUM_UNLIKELY(_x) _x
+#endif
