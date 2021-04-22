@@ -19,6 +19,22 @@ project(ELYSIUM
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+option(ENABLE_LTO "Enable cross language linking time optimization" ON)
+if(ENABLE_LTO AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # TODO: Check that we're using Clang and that LLD is available, and
+  # give a proper warning if not.
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT supported OUTPUT error)
+  if(supported)
+    message(STATUS "IPO / LTO enabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    add_compile_options(-flto=thin)
+    add_link_options(-fuse-ld=lld -flto=thin)
+  else()
+    message(STATUS "IPO / LTO not supported: <${error}>")
+  endif()
+endif()
+
 # ==================================================
 
 add_subdirectory(third_party/JUCE)

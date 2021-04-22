@@ -9,6 +9,10 @@ else()
   set(cargo-cmd cargo build --${build-type})
 endif()
 
+if(ENABLE_LTO AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(rustflags -Clinker-plugin-lto\ -Clinker=clang\ -Clink-arg=-fuse-ld=lld)
+endif()
+
 set(rust-lib-name elysium)
 set(cargo-target-dir "${CMAKE_CURRENT_BINARY_DIR}/target")
 
@@ -21,7 +25,7 @@ add_custom_command(
   OUTPUT ${cxxbridge-generated-cpp} ${cxxbridge-generated-hpp} ${rust-lib-path}
   MAIN_DEPENDENCY src/lib.rs
   DEPENDS ${rust-sources}
-  COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${cargo-target-dir} ${cargo-cmd}
+  COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${cargo-target-dir} RUSTFLAGS=${rustflags} ${cargo-cmd}
   COMMAND ${CMAKE_COMMAND} -E copy ${cargo-target-dir}/cxxbridge/${rust-lib-name}/src/lib.rs.cc ${cxxbridge-generated-cpp}
   COMMAND ${CMAKE_COMMAND} -E copy ${cargo-target-dir}/cxxbridge/${rust-lib-name}/src/lib.rs.h ${cxxbridge-generated-hpp}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
