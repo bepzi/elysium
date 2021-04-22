@@ -42,7 +42,7 @@ juce_add_plugin(Elysium
   LV2_WANTS_LATENCY FALSE)
 
 set_target_properties(Elysium PROPERTIES
-  CXX_STANDARD 17
+  CXX_STANDARD 20
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF)
 
