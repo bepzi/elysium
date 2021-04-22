@@ -1,0 +1,9 @@
+[package]
+name = "lv2_ttl_generator"
+version = "0.1.0"
+authors = ["bepzi <bepzi@bepzi.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+libloading = "0.7"
