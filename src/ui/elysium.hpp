@@ -1,11 +1,10 @@
 #pragma once
 
 #include "elysium_rust.hpp"
+#include "owning_mutex.hpp"
 #include "utils.hpp"
 
 #include <juce_audio_processors/juce_audio_processors.h>
-
-#include <mutex>
 
 namespace elysium {
 
@@ -71,8 +70,7 @@ private:
     // reference by enforcing that only one thread can "own" the Rust
     // implementation at a time. And we have to do this WITHOUT
     // blocking the audio thread!
-    rust::Box<ffi::ElysiumAudioProcessor> impl;
-    std::mutex implLock;
+    OwningMutex<rust::Box<ffi::ElysiumAudioProcessor>> impl;
 };
 
 } // namespace elysium

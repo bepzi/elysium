@@ -24,15 +24,17 @@ const String ElysiumAudioProcessor::getName() const
 
 void ElysiumAudioProcessor::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 {
-    std::lock_guard l(implLock);
-    impl->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    const auto guard = impl.lock();
+    guard.getMut()->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
 void ElysiumAudioProcessor::releaseResources() { }
 
 void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer &midiMessages)
 {
-    if (ELYSIUM_UNLIKELY(!implLock.try_lock())) {
+    const auto guard = impl.try_lock();
+
+    if (ELYSIUM_UNLIKELY(!guard)) {
         // We can't allow access to the Rust implementation if another
         // thread is already accessing it. Rust assumes we won't screw
         // up its mutability and aliasing guarantees.
@@ -54,10 +56,8 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
     ffi::MidiBufferIterator midiIter = { midiMessages.cbegin(), midiMessages.cend() };
     {
         ScopedNoDenormals noDenormals;
-        impl->processBlock(audioData, midiIter);
+        guard->getMut()->processBlock(audioData, midiIter);
     }
-
-    implLock.unlock();
 }
 
 double ElysiumAudioProcessor::getTailLengthSeconds() const
