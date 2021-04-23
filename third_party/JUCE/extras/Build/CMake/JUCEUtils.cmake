@@ -1348,13 +1348,19 @@ function(_juce_set_plugin_target_properties shared_code_target kind)
         set_target_properties(${target_name} PROPERTIES
             PREFIX "")
 
-        set_source_files_properties(${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/lv2_ttl_generator.c PROPERTIES LANGUAGE CXX)
-        add_executable(lv2_ttl_generator ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/lv2_ttl_generator.c)
-        target_link_libraries(lv2_ttl_generator ${CMAKE_DL_LIBS})
+        set(cargo-target-dir ${CMAKE_CURRENT_BINARY_DIR}/target)
+        set(ttl-generator-path ${cargo-target-dir}/debug/lv2_ttl_generator${CMAKE_EXECUTABLE_SUFFIX})
+
+        add_custom_command(TARGET ${target_name} PRE_BUILD
+            MAIN_DEPENDENCY ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/src/main.rs
+            DEPENDS ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/Cargo.toml
+            COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${cargo-target-dir} cargo build
+            WORKING_DIRECTORY ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator
+            VERBATIM)
 
         add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND lv2_ttl_generator $<TARGET_FILE:${target_name}>
-            COMMENT "Generating LV2 Turtle manifest files for ${target_name}"
+            COMMAND ${ttl-generator-path} $<TARGET_FILE:${target_name}>
+            COMMENT "Generating LV2 Turtle files for ${target_name}"
             WORKING_DIRECTORY ${products_folder}
             VERBATIM)
 
