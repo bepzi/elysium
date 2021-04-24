@@ -1348,18 +1348,22 @@ function(_juce_set_plugin_target_properties shared_code_target kind)
         set_target_properties(${target_name} PROPERTIES
             PREFIX "")
 
-        set(cargo-target-dir ${CMAKE_CURRENT_BINARY_DIR}/target)
-        set(ttl-generator-path ${cargo-target-dir}/debug/lv2_ttl_generator${CMAKE_EXECUTABLE_SUFFIX})
+        set(cargo-target-dir ${CMAKE_CURRENT_BINARY_DIR}/lv2_ttl_generator)
+        set(ttl-generator-sources ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator)
+        set(ttl-generator-exe ${cargo-target-dir}/debug/lv2_ttl_generator${CMAKE_EXECUTABLE_SUFFIX})
 
-        add_custom_command(TARGET ${target_name} PRE_BUILD
-            MAIN_DEPENDENCY ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/src/main.rs
-            DEPENDS ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator/Cargo.toml
+        add_custom_target(lv2_ttl_generator
             COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${cargo-target-dir} cargo build
-            WORKING_DIRECTORY ${JUCE_SOURCE_DIR}/extras/Build/lv2_ttl_generator
+            DEPENDS ${ttl-generator-sources}/src/main.rs ${ttl-generator-sources}/Cargo.toml
+            SOURCES ${ttl-generator-sources}/src/main.rs ${ttl-generator-sources}/Cargo.toml
+            BYPRODUCTS ${ttl-generator-exe}
+            WORKING_DIRECTORY ${ttl-generator-sources}
             VERBATIM)
 
+        add_dependencies(${target_name} lv2_ttl_generator)
+
         add_custom_command(TARGET ${target_name} POST_BUILD
-            COMMAND ${ttl-generator-path} $<TARGET_FILE:${target_name}>
+            COMMAND ${ttl-generator-exe} $<TARGET_FILE:${target_name}>
             COMMENT "Generating LV2 Turtle files for ${target_name}"
             WORKING_DIRECTORY ${products_folder}
             VERBATIM)
