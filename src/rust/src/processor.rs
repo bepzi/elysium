@@ -1,21 +1,18 @@
 use core::pin::Pin;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
-use wmidi::MidiMessage;
 
-// use dasp_envelope;
-use dasp_sample::Sample;
 use dasp_signal::Signal;
-// use dasp_signal::envelope::SignalEnvelope;
+use wmidi::{MidiMessage, Note, Velocity, U7};
 
 use crate::ffi;
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
-const DEFAULT_FREQUENCY: f64 = 220.0;
 
 pub struct ElysiumAudioProcessor {
     sample_rate: f64,
-    freq: f64,
-    signal: Option<Box<dyn Signal<Frame = f64>>>,
+    // TODO: Use a datastructure that doesn't allocate
+    voices: HashMap<Note, Box<dyn Signal<Frame = f64>>>,
     midi_state: MidiState,
 }
 
@@ -23,8 +20,7 @@ impl ElysiumAudioProcessor {
     pub fn new() -> Self {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
-            freq: DEFAULT_FREQUENCY,
-            signal: None,
+            voices: HashMap::new(),
             midi_state: MidiState::new(),
         }
     }
@@ -32,11 +28,8 @@ impl ElysiumAudioProcessor {
     // Will be called on the main thread.
     pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
-        self.signal = Some(Box::new(
-            dasp_signal::rate(self.sample_rate)
-                .const_hz(self.freq)
-                .square(),
-        ));
+        self.voices = HashMap::new();
+        self.midi_state = MidiState::new();
     }
 
     // Will be called on the audio thread.
@@ -45,69 +38,85 @@ impl ElysiumAudioProcessor {
         audio: &mut [&mut [f32]],
         midi: Pin<&mut ffi::MidiBufferIterator>,
     ) {
+        if audio.is_empty() {
+            return;
+        }
+
         self.midi_state.process_midi_messages(midi);
 
-        if !self.midi_state.notes_on.is_empty() {
-            println!("MIDI ON {:?}", self.midi_state.notes_on);
-        }
-        if !self.midi_state.notes_turned_off.is_empty() {
-            println!("MIDI OFF {:?}", self.midi_state.notes_turned_off);
+        for off in &self.midi_state.notes_turned_off {
+            self.voices.remove(off);
         }
 
-        assert!(!audio.is_empty());
-        assert!(self.signal.is_some());
+        for (on, velocity) in &self.midi_state.notes_turned_on {
+            self.voices.insert(
+                *on,
+                // TODO: Don't heap allocate for each NoteOn event
+                Box::new(
+                    dasp_signal::rate(self.sample_rate)
+                        .const_hz(on.to_freq_f64())
+                        .square()
+                        // TODO: Should this be logarithmic rather than linear?
+                        .scale_amp(u8::from(*velocity) as f64 / u8::from(U7::MAX) as f64)
+                        .scale_amp(0.02),
+                ),
+            );
+        }
 
-        let signal = self.signal.as_mut().unwrap();
-        let samples = (0..audio[0].len())
-            .map(|_| {
-                let s = signal.next() * 0.01;
-                s.to_sample::<f32>()
-            })
-            .collect::<Vec<f32>>();
+        // Pull a single frame's worth of samples from each active
+        // voice, then sum them together to get the final list of
+        // samples.
+        let mut equilibrium = vec![0.0f64; audio[0].len()];
 
+        let voice_sample_iters = self
+            .voices
+            .values_mut()
+            .map(|voice| (0..audio[0].len()).map(move |_| voice.next()));
+
+        for voice_iter in voice_sample_iters {
+            for (i, sample) in voice_iter.enumerate() {
+                equilibrium[i] += sample;
+            }
+        }
+
+        let samples: Vec<f32> = equilibrium.into_iter().map(|f| f as f32).collect();
         for channel in audio.iter_mut() {
             channel.copy_from_slice(&samples);
         }
     }
 }
 
+#[derive(Debug)]
 struct MidiState {
-    notes_on: Vec<MidiMessage<'static>>,
-    notes_turned_off: Vec<MidiMessage<'static>>,
+    // TODO: Use a datastructure that doesn't allocate
+    notes_turned_on: HashMap<Note, Velocity>,
+    notes_turned_off: HashSet<Note>,
 }
 
 impl MidiState {
     fn new() -> Self {
         Self {
-            notes_on: vec![],
-            notes_turned_off: vec![],
+            notes_turned_on: HashMap::new(),
+            notes_turned_off: HashSet::new(),
         }
     }
 
     fn process_midi_messages(&mut self, mut midi: Pin<&mut ffi::MidiBufferIterator>) {
+        self.notes_turned_on.clear();
         self.notes_turned_off.clear();
 
         let mut raw_midi_message: &[u8] = midi.as_mut().next_slice();
         while !raw_midi_message.is_empty() {
             if let Ok(message) = MidiMessage::try_from(raw_midi_message) {
                 match message {
-                    MidiMessage::NoteOn(_, _, _) => {
-                        self.notes_on.push(message.drop_unowned_sysex().unwrap())
+                    MidiMessage::NoteOn(_, note, velocity) => {
+                        self.notes_turned_off.insert(note);
+                        self.notes_turned_on.insert(note, velocity);
                     }
-                    MidiMessage::NoteOff(_, _, _) => {
-                        let owned = message.drop_unowned_sysex().unwrap();
 
-                        // Pair the NoteOn with its NoteOff, but don't
-                        // worry about checking the velocity.
-                        self.notes_on.retain(|note| match (note, &owned) {
-                            (
-                                &MidiMessage::NoteOn(ch1, n1, _),
-                                &MidiMessage::NoteOff(ch2, n2, _),
-                            ) => ch1 != ch2 || n1 != n2,
-                            _ => true,
-                        });
-
-                        self.notes_turned_off.push(owned);
+                    MidiMessage::NoteOff(_, note, _) => {
+                        self.notes_turned_on.remove(&note);
+                        self.notes_turned_off.insert(note);
                     }
                     _ => {}
                 }
