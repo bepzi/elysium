@@ -105,8 +105,9 @@ set(cargo-toml ${CMAKE_SOURCE_DIR}/src/rust/Cargo.toml)
 file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.c??")
 file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.h??")
 
+set(header-filter-regex "${CMAKE_SOURCE_DIR}/src/.+\.h(pp)?")
 add_custom_target(lint
-  COMMAND clang-tidy ${cxx-sources}
+  COMMAND clang-tidy --header-filter=${header-filter-regex} ${cxx-sources}
   COMMAND cargo clippy ${cargo-flags} --target-dir ${cargo-dir} --manifest-path ${cargo-toml}
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   COMMENT "Running 'clang-tidy' and 'cargo clippy' on C++ and Rust sources"

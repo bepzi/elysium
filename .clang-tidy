@@ -1,7 +1,6 @@
 ---
 Checks:          'clang-diagnostic-*,clang-analyzer-*,modernize-*,clang-analyzer-*,misc-*,performance-*,bugprone-*,readability-*,llvm-*,concurrency-*,cppcoreguidelines-*,-modernize-use-trailing-return-type,-llvm-header-guard,-bugprone-macro-parentheses,-cppcoreguidelines-macro-usage,-readability-braces-around-statements,-misc-non-private-member-variables-in-classes,-cppcoreguidelines-pro-type-vararg,-cppcoreguidelines-pro-bounds-constant-array-index'
 WarningsAsErrors: ''
-HeaderFilterRegex: 'elysium/src/.+\.h(pp|xx)?'
 AnalyzeTemporaryDtors: false
 FormatStyle:     none
 CheckOptions:
