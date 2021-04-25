@@ -1,7 +1,6 @@
 #include "audio_basics.hpp"
 
-namespace elysium {
-namespace ffi {
+namespace elysium::ffi {
 
 rust::Slice<const uint8_t> MidiBufferIterator::next()
 {
@@ -13,5 +12,4 @@ rust::Slice<const uint8_t> MidiBufferIterator::next()
     return { meta.data, static_cast<size_t>(std::max(meta.numBytes, 0)) };
 }
 
-} // namespace ffi
-} // namespace elysium
+} // namespace elysium::ffi

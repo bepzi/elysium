@@ -15,6 +15,8 @@ public:
 
     ElysiumAudioProcessor();
 
+    ~ElysiumAudioProcessor() override;
+
     const juce::String getName() const override;
 
     void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
@@ -71,6 +73,9 @@ private:
     // implementation at a time. And we have to do this WITHOUT
     // blocking the audio thread!
     OwningMutex<rust::Box<ffi::ElysiumAudioProcessor>> impl;
+
+    static constexpr size_t MAX_CHANNELS = 16;
+    std::array<rust::Slice<float>, MAX_CHANNELS> channels;
 };
 
 } // namespace elysium

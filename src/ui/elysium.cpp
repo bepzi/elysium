@@ -17,6 +17,9 @@ ElysiumAudioProcessor::ElysiumAudioProcessor()
 {
 }
 
+ElysiumAudioProcessor::~ElysiumAudioProcessor() = default;
+
+// NOLINTNEXTLINE(readability-const-return-type)
 const String ElysiumAudioProcessor::getName() const
 {
     return JucePlugin_Name;
@@ -45,14 +48,13 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
         return;
     }
 
-    std::vector<rust::Slice<float>> channels;
-    channels.reserve(buffer.getNumChannels());
-    for (int i = 0; i < buffer.getNumChannels(); ++i) {
-        channels.push_back({ buffer.getWritePointer(i),
-                             static_cast<size_t>(std::max(buffer.getNumSamples(), 0)) });
-    }
+    const auto numChannels =
+            std::min(static_cast<size_t>(std::max(buffer.getNumChannels(), 0)), MAX_CHANNELS);
+    const auto numSamples = static_cast<size_t>(std::max(buffer.getNumSamples(), 0));
+    for (int i = 0; i < numChannels; ++i)
+        channels[i] = { buffer.getWritePointer(i), numSamples };
 
-    rust::Slice<rust::Slice<float>> audioData = { channels.data(), channels.size() };
+    rust::Slice<rust::Slice<float>> audioData = { channels.data(), numChannels };
     ffi::MidiBufferIterator midiIter = { midiMessages.cbegin(), midiMessages.cend() };
     {
         ScopedNoDenormals noDenormals;
@@ -100,6 +102,7 @@ void ElysiumAudioProcessor::setCurrentProgram(int index)
     ignoreUnused(index);
 }
 
+// NOLINTNEXTLINE(readability-const-return-type)
 const String ElysiumAudioProcessor::getProgramName(int index)
 {
     ignoreUnused(index);
