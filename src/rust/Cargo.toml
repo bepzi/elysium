@@ -16,7 +16,8 @@ wmidi = "4"
 dasp_sample = "0.11"
 dasp_frame = "0.11"
 dasp_slice = "0.11"
-dasp_signal = "0.11"
+dasp_signal = { version = "0.11", features = ["envelope"] }
+dasp_envelope = { version = "0.11", features = ["peak"] }
 
 [build-dependencies]
 cxx-build = "1"

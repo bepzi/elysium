@@ -13,7 +13,7 @@ struct MidiBufferIterator
     juce::MidiBufferIterator iter;
     juce::MidiBufferIterator end;
 
-    rust::Slice<const uint8_t> next();
+    rust::Slice<const uint8_t> nextSlice();
 };
 
 } // namespace elysium::ffi

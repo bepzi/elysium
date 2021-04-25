@@ -14,7 +14,8 @@ mod ffi {
 
         type MidiBufferIterator;
 
-        fn next(self: Pin<&mut MidiBufferIterator>) -> &[u8];
+        #[rust_name = "next_slice"]
+        fn nextSlice(self: Pin<&mut MidiBufferIterator>) -> &[u8];
     }
 
     extern "Rust" {

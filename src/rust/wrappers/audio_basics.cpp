@@ -2,7 +2,7 @@
 
 namespace elysium::ffi {
 
-rust::Slice<const uint8_t> MidiBufferIterator::next()
+rust::Slice<const uint8_t> MidiBufferIterator::nextSlice()
 {
     if (iter == end)
         return {};
