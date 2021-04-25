@@ -3,25 +3,25 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   # are fine if you're extra careful to pass the --config flag in
   # addition to CMAKE_BUILD_TYPE
   set(build-type debug)
-  set(cargo-cmd cargo build)
+  set(cargo-flags)
 else()
   set(build-type release)
-  set(cargo-cmd cargo build --${build-type})
+  set(cargo-flags --${build-type})
 endif()
 
 set(rust-lib-name elysium)
-set(cargo-target-dir "${CMAKE_CURRENT_BINARY_DIR}/target")
+set(cargo-target-dir ${CMAKE_CURRENT_BINARY_DIR}/target)
 
-set(rust-lib-path "${cargo-target-dir}/${build-type}/${CMAKE_STATIC_LIBRARY_PREFIX}${rust-lib-name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-set(cxxbridge-generated-cpp "${cargo-target-dir}/elysium_rust.cpp")
-set(cxxbridge-generated-hpp "${cargo-target-dir}/elysium_rust.hpp")
+set(rust-lib-path ${cargo-target-dir}/${build-type}/${CMAKE_STATIC_LIBRARY_PREFIX}${rust-lib-name}${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(cxxbridge-generated-cpp ${cargo-target-dir}/elysium_rust.cpp)
+set(cxxbridge-generated-hpp ${cargo-target-dir}/elysium_rust.hpp)
 
-file(GLOB_RECURSE rust-sources *.rs)
+file(GLOB_RECURSE rust-sources LIST_DIRECTORIES false *.rs)
 add_custom_command(
   OUTPUT ${cxxbridge-generated-cpp} ${cxxbridge-generated-hpp} ${rust-lib-path}
   MAIN_DEPENDENCY src/lib.rs
   DEPENDS ${rust-sources}
-  COMMAND ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${cargo-target-dir} ${cargo-cmd}
+  COMMAND cargo build --target-dir ${cargo-target-dir} ${cargo-flags}
   COMMAND ${CMAKE_COMMAND} -E copy ${cargo-target-dir}/cxxbridge/${rust-lib-name}/src/lib.rs.cc ${cxxbridge-generated-cpp}
   COMMAND ${CMAKE_COMMAND} -E copy ${cargo-target-dir}/cxxbridge/${rust-lib-name}/src/lib.rs.h ${cxxbridge-generated-hpp}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -30,6 +30,10 @@ add_custom_command(
 add_library(elysium_rust STATIC
   ${cxxbridge-generated-cpp}
   wrappers/audio_basics.cpp)
+
+set_target_properties(elysium_rust PROPERTIES
+  CARGO_DIR ${cargo-target-dir}
+  CARGO_FLAGS ${cargo-flags})
 
 target_include_directories(elysium_rust PUBLIC
   # Other people want to find our generated C++ bindings to Rust
