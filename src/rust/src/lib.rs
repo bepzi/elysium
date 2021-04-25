@@ -1,3 +1,9 @@
+#![deny(clippy::all)]
+#![deny(clippy::correctness)]
+#![warn(clippy::style)]
+#![warn(clippy::complexity)]
+#![warn(clippy::perf)]
+
 mod processor;
 use processor::ElysiumAudioProcessor;
 

@@ -50,14 +50,19 @@ impl ElysiumAudioProcessor {
             raw_midi_message = midi.as_mut().next();
         }
 
-        for j in 0..audio[0].len() {
-            let white_noise = (self.rng.gen::<f64>() * 2.0) - 1.0;
-            let sine_sample = self.current_angle.sin();
-            self.current_angle += self.angle_delta;
+        assert!(!audio.is_empty());
 
-            for i in 0..audio.len() {
-                audio[i][j] = ((white_noise + sine_sample) * 0.01) as f32;
-            }
+        let samples = (0..audio[0].len())
+            .map(|_| {
+                let white_noise = (self.rng.gen::<f64>() * 2.0) - 1.0;
+                let sine_sample = self.current_angle.sin();
+                self.current_angle += self.angle_delta;
+                ((white_noise + sine_sample) * 0.01) as f32
+            })
+            .collect::<Vec<f32>>();
+
+        for channel in audio.iter_mut() {
+            channel.copy_from_slice(&samples);
         }
     }
 }

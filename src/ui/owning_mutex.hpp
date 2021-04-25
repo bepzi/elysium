@@ -28,13 +28,15 @@ public:
 
     explicit OwningMutex(T &&value = T()) : value(std::move(value)) { }
 
-    MutexGuard<T, Lockable> lock()
+    ~OwningMutex() = default;
+
+    [[nodiscard]] MutexGuard<T, Lockable> lock()
     {
         mutex.lock();
         return { &value, &mutex };
     }
 
-    std::optional<MutexGuard<T, Lockable>> try_lock()
+    [[nodiscard]] std::optional<MutexGuard<T, Lockable>> try_lock()
     {
         if (!mutex.try_lock())
             return std::nullopt;
@@ -76,9 +78,9 @@ public:
         std::swap(mutex, other.mutex);
     }
 
-    const T &get() const { return *value; }
+    [[nodiscard]] const T &get() const { return *value; }
 
-    T &getMut() const { return *value; }
+    [[nodiscard]] T &getMut() const { return *value; }
 
 private:
     friend OwningMutex<T, Lockable>;

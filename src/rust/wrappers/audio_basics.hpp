@@ -6,8 +6,7 @@
 
 #include <cstdint>
 
-namespace elysium {
-namespace ffi {
+namespace elysium::ffi {
 
 struct MidiBufferIterator
 {
@@ -17,5 +16,4 @@ struct MidiBufferIterator
     rust::Slice<const uint8_t> next();
 };
 
-} // namespace ffi
-} // namespace elysium
+} // namespace elysium::ffi

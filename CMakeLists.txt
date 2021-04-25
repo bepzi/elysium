@@ -17,6 +17,7 @@ project(ELYSIUM
   DESCRIPTION "A polyphonic synthesizer with Rust guts."
   LANGUAGES CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ==================================================
@@ -94,3 +95,28 @@ if(WIN32)
     bcrypt
     userenv)
 endif()
+
+# ==================================================
+
+get_target_property(cargo-dir elysium_rust CARGO_DIR)
+get_target_property(cargo-flags elysium_rust CARGO_FLAGS)
+set(cargo-toml ${CMAKE_SOURCE_DIR}/src/rust/Cargo.toml)
+
+file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.c??")
+file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.h??")
+
+add_custom_target(lint
+  COMMAND clang-tidy ${cxx-sources}
+  COMMAND cargo clippy ${cargo-flags} --target-dir ${cargo-dir} --manifest-path ${cargo-toml}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMENT "Running 'clang-tidy' and 'cargo clippy' on C++ and Rust sources"
+  VERBATIM)
+
+add_dependencies(lint elysium_rust)
+
+add_custom_target(format
+  COMMAND clang-format -i -style=file ${cxx-sources} ${cxx-headers}
+  COMMAND cargo fmt --manifest-path ${cargo-toml}
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMENT "Running 'clang-format' and 'cargo fmt' on C++ and Rust sources"
+  VERBATIM)
