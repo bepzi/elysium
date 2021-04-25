@@ -11,8 +11,12 @@ crate_type = [ "staticlib" ]
 
 [dependencies]
 cxx = "1"
-rand = "0.8"
 wmidi = "4"
+
+dasp_sample = "0.11"
+dasp_frame = "0.11"
+dasp_slice = "0.11"
+dasp_signal = "0.11"
 
 [build-dependencies]
 cxx-build = "1"
