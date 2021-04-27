@@ -7,7 +7,7 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [lib]
-crate_type = [ "staticlib" ]
+crate_type = [ "staticlib", "lib" ]
 
 [dependencies]
 cxx = "1"
