@@ -5,6 +5,7 @@
 #![warn(clippy::perf)]
 
 pub mod processor;
+pub mod phasors;
 use processor::ElysiumAudioProcessor;
 
 #[cxx::bridge(namespace = "elysium::ffi")]
@@ -41,5 +42,5 @@ mod ffi {
 }
 
 fn create_elysium_audio_processor() -> Box<ElysiumAudioProcessor> {
-    Box::new(ElysiumAudioProcessor::new())
+    Box::new(ElysiumAudioProcessor::default())
 }
