@@ -4,8 +4,8 @@
 #![warn(clippy::complexity)]
 #![warn(clippy::perf)]
 
-pub mod processor;
 pub mod phasors;
+pub mod processor;
 use processor::ElysiumAudioProcessor;
 
 #[cxx::bridge(namespace = "elysium::ffi")]

@@ -1,3 +1,5 @@
+const TWO_PI: f64 = 2.0 * std::f64::consts::PI;
+
 /// Semantic alias for frequency.
 pub type Frequency = f64;
 
@@ -70,6 +72,11 @@ impl Phasor {
         phasor
     }
 
+    /// Gets the current sampling rate.
+    pub fn get_sample_rate(&self) -> f64 {
+        return self.sample_rate;
+    }
+
     /// Changes the sampling rate, but not the frequency.
     ///
     /// As `sample_rate` increases, the phasor will advance by
@@ -100,6 +107,11 @@ impl Phasor {
         self.freq = freq;
         self.update_phase_increment();
     }
+
+    /// Gets the current frequency.
+    pub fn get_freq(&self) -> f64 {
+        return self.freq;
+    }
 }
 
 impl Iterator for Phasor {
@@ -124,5 +136,26 @@ impl Iterator for FnMutPhasor {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some((self.fn_mut)(self.phasor.next().unwrap()))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SinePhasor {
+    pub phasor: Phasor,
+}
+
+impl Default for SinePhasor {
+    fn default() -> Self {
+        Self {
+            phasor: Phasor::default(),
+        }
+    }
+}
+
+impl Iterator for SinePhasor {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some((self.phasor.next().unwrap() * TWO_PI).sin())
     }
 }

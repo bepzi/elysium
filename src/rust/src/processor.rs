@@ -2,17 +2,17 @@ use core::pin::Pin;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
-use dasp_signal::Signal;
-use wmidi::{MidiMessage, Note, Velocity, U7};
+use wmidi::{MidiMessage, Note, Velocity};
 
 use crate::ffi;
+use crate::phasors::SinePhasor;
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 
 pub struct ElysiumAudioProcessor {
     sample_rate: f64,
     // TODO: Use a datastructure that doesn't allocate
-    voices: HashMap<Note, Box<dyn Signal<Frame = f64>>>,
+    voices: HashMap<Note, SinePhasor>,
     midi_state: MidiState,
 }
 
@@ -51,18 +51,16 @@ impl ElysiumAudioProcessor {
             self.voices.remove(off);
         }
 
-        for (on, velocity) in &self.midi_state.notes_turned_on {
+        for (on, _velocity) in &self.midi_state.notes_turned_on {
             self.voices.insert(
                 *on,
                 // TODO: Don't heap allocate for each NoteOn event
-                Box::new(
-                    dasp_signal::rate(self.sample_rate)
-                        .const_hz(on.to_freq_f64())
-                        .square()
-                        // TODO: Should this be logarithmic rather than linear?
-                        .scale_amp(u8::from(*velocity) as f64 / u8::from(U7::MAX) as f64)
-                        .scale_amp(0.02),
-                ),
+                {
+                    let mut s = SinePhasor::default();
+                    s.phasor.set_sample_rate(self.sample_rate);
+                    s.phasor.set_freq(on.to_freq_f64());
+                    s
+                },
             );
         }
 
@@ -74,7 +72,7 @@ impl ElysiumAudioProcessor {
         let voice_sample_iters = self
             .voices
             .values_mut()
-            .map(|voice| (0..audio[0].len()).map(move |_| voice.next()));
+            .map(|voice| (0..audio[0].len()).map(move |_| voice.next().unwrap() * 0.02));
 
         for voice_iter in voice_sample_iters {
             for (i, sample) in voice_iter.enumerate() {
