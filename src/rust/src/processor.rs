@@ -12,27 +12,36 @@ const MAX_NUM_VOICES: usize = 16;
 
 pub struct ElysiumAudioProcessor {
     sample_rate: f64,
-    // TODO: Use a datastructure that doesn't allocate
-    voices: Vec<Voice>,
+    voices: [Voice; MAX_NUM_VOICES],
     midi_state: MidiState,
+    sample_buffer: [Vec<f64>; 2],
 }
 
 impl Default for ElysiumAudioProcessor {
     fn default() -> Self {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
-            voices: Vec::new(),
+            voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
             midi_state: MidiState::new(),
+            sample_buffer: [Vec::new(), Vec::new()],
         }
     }
 }
 
 impl ElysiumAudioProcessor {
     // Will be called on the main thread.
-    pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
+    pub fn prepare_to_play(&mut self, sample_rate: f64, maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
-        self.voices = vec![Voice::new(self.sample_rate); MAX_NUM_VOICES];
+
+        for voice in &mut self.voices {
+            *voice = Voice::new(self.sample_rate);
+        }
+
         self.midi_state = MidiState::new();
+
+        for channel in &mut self.sample_buffer {
+            *channel = vec![0.0; maximum_expected_samples_per_block.max(0) as usize];
+        }
     }
 
     // Will be called on the audio thread.
@@ -104,29 +113,35 @@ impl ElysiumAudioProcessor {
         // voice, then sum them together to get the final list of
         // samples.
 
-        // TODO: Can't I just reduce the voice iterators down? (Maybe
-        // I need to make the voices stereo first, to handle that
-        // usecase).
-        let mut equilibrium = vec![0.0f64; audio[0].len()];
-
         let voice_sample_iters = self
             .voices
             .iter_mut()
             .filter(|voice| voice.currently_playing().is_some())
             .map(|voice| (0..audio[0].len()).map(move |_| voice.next().unwrap()));
 
+        // TODO: Ignoring the other channel buffer for now, pretending
+        // we're doing everything in mono
+        let buffer = &mut self.sample_buffer[0];
+
+        // TODO: Need to handle the possibility that
+        // maximum_expected_samples_per_block was actually greater
+        // than the total number of samples we were given in this
+        // callback.
+        assert!(buffer.len() == audio[0].len());
+
         for voice_iter in voice_sample_iters {
             for (i, sample) in voice_iter.enumerate() {
-                equilibrium[i] += sample;
+                buffer[i] += sample;
             }
         }
 
-        let samples: Vec<f32> = equilibrium
-            .into_iter()
-            .map(|f| (f * 0.075) as f32)
-            .collect();
+        let samples: Vec<f32> = channel.iter().map(|f| (f * 0.075) as f32).collect();
         for channel in audio.iter_mut() {
             channel.copy_from_slice(&samples);
+        }
+
+        for channel in &mut self.sample_buffer {
+            channel.fill(0.0);
         }
     }
 }
