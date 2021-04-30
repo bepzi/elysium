@@ -16,25 +16,21 @@ pub type Frequency = f64;
 /// A cyclic [phasor] that yields values from `[0, 1)` given a
 /// sampling rate and a frequency.
 ///
-/// Note that although the [`Iterator`] trait returns an
-/// [`Option`], it is always safe to call `unwrap()` as it will
-/// never return `None`.
-///
 /// # Examples
 ///
 /// ```
 /// # use crate::elysium::phasors::Phasor;
 /// // A phasor wraps around once it reaches 1.0
 /// let mut phasor = Phasor::new(2.0, 1.0);
-/// assert_eq!(phasor.next(), Some(0.0));
-/// assert_eq!(phasor.next(), Some(0.5));
-/// assert_eq!(phasor.next(), Some(0.0));
+/// assert_eq!(phasor.next_phase(), 0.0);
+/// assert_eq!(phasor.next_phase(), 0.5);
+/// assert_eq!(phasor.next_phase(), 0.0);
 ///
 /// // Create a phasor for audio sampling rates and frequencies
 /// let mut phasor = Phasor::new(44100.0, 440.0);
-/// let val = phasor.next().unwrap();
+/// let val = phasor.next_phase();
 /// assert_eq!(val, 0.0);
-/// assert_eq!(phasor.next(), Some(0.009977324263038548));
+/// assert_eq!(phasor.next_phase(), 0.009977324263038548);
 ///
 /// // Shift from [0, 1) to [0, 2pi), then take the sine
 /// let val = (val * 2.0 * std::f64::consts::PI).sin();
@@ -85,7 +81,7 @@ impl Phasor {
     }
 
     /// Gets the current sampling rate.
-    pub fn get_sample_rate(&self) -> Frequency {
+    pub fn sample_rate(&self) -> Frequency {
         self.sample_rate
     }
 
@@ -104,6 +100,11 @@ impl Phasor {
         self.update_phase_increment();
     }
 
+    /// Gets the current frequency.
+    pub fn freq(&self) -> Frequency {
+        self.freq
+    }
+
     /// Changes the frequency, but not the sampling rate.
     ///
     /// As `freq` increases, the phasor will advance by larger and
@@ -120,51 +121,46 @@ impl Phasor {
         self.update_phase_increment();
     }
 
-    /// Gets the current frequency.
-    pub fn get_freq(&self) -> Frequency {
-        self.freq
-    }
-}
-
-impl Iterator for Phasor {
-    type Item = f64;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    /// Gets the next phase value.
+    pub fn next_phase(&mut self) -> f64 {
         let value = self.phase;
         self.phase += self.phase_incr;
         if self.phase >= 1.0 {
             self.phase -= 1.0;
         }
-        Some(value)
+        value
     }
 }
 
 // =============================================================================
 
 #[derive(Debug, Copy, Clone)]
-pub struct Voice {
+pub struct Voice<const CHANNELS: usize> {
     phasor: Phasor,
     last_played_at: std::time::Instant,
     note: Option<MidiNote>,
-    velocity: f64,
+    velocity_f64: f64,
 }
 
-impl Voice {
+impl<const CHANNELS: usize> Voice<CHANNELS> {
     pub fn new(sample_rate: Frequency) -> Self {
         Self {
             phasor: Phasor::new(sample_rate, 0.0),
             last_played_at: std::time::Instant::now(),
             note: None,
-            velocity: 0.0,
+            velocity_f64: 0.0,
         }
     }
 
     pub fn start_playing(&mut self, note: MidiNote) {
         self.phasor.reset();
+        // TODO: Eventually we'll have to handle more complex
+        // frequency changes, like vibrato or pitch bend.
         self.phasor.set_freq(note.note.to_freq_f64());
         self.last_played_at = std::time::Instant::now();
         self.note = Some(note);
-        self.velocity = u8::from(note.velocity) as f64 / u8::from(U7::MAX) as f64
+        // TODO: Should velocity sensing be logarithmic instead of linear?
+        self.velocity_f64 = u8::from(note.velocity) as f64 / u8::from(U7::MAX) as f64
     }
 
     pub fn stop_playing(&mut self) {
@@ -178,21 +174,18 @@ impl Voice {
     pub fn last_played_at(&self) -> std::time::Instant {
         self.last_played_at
     }
-}
 
-impl Iterator for Voice {
-    type Item = f64;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next_frame(&mut self) -> [f64; CHANNELS] {
         if self.note.is_some() {
-            // TODO: Obviously this should be more interesting than
-            // just a sine wave. How should we handle things like
+            // TODO: Obviously this should be more interesting than a
+            // mono sine wave. How should we handle things like
             // realtime parameters and complex waveforms?
-            let value = self.phasor.next().unwrap();
+            let value = self.phasor.next_phase();
             let value = (value * 2.0 * std::f64::consts::PI).sin();
-            Some(value * self.velocity)
+            let value = value * self.velocity_f64;
+            [value; CHANNELS]
         } else {
-            Some(0.0)
+            [0.0; CHANNELS]
         }
     }
 }

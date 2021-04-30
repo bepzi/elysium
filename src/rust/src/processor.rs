@@ -12,18 +12,19 @@ const MAX_NUM_VOICES: usize = 16;
 
 pub struct ElysiumAudioProcessor<const CHANNELS: usize> {
     sample_rate: f64,
-    voices: [Voice; MAX_NUM_VOICES],
     midi_state: MidiState,
-    sample_buffer: [Vec<f64>; CHANNELS],
+    voices: [Voice<CHANNELS>; MAX_NUM_VOICES],
+    scratch_buffer: [Vec<f64>; CHANNELS],
 }
 
 impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
     fn default() -> Self {
+        assert!(CHANNELS > 0);
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
-            voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
             midi_state: MidiState::new(),
-            sample_buffer: array_init::array_init(|_| Vec::new()),
+            voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
+            scratch_buffer: array_init::array_init(|_| Vec::new()),
         }
     }
 }
@@ -32,14 +33,13 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
     // Will be called on the main thread.
     pub fn prepare_to_play(&mut self, sample_rate: f64, maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
+        self.midi_state = MidiState::new();
 
         for voice in &mut self.voices {
             *voice = Voice::new(self.sample_rate);
         }
 
-        self.midi_state = MidiState::new();
-
-        for channel in &mut self.sample_buffer {
+        for channel in &mut self.scratch_buffer {
             *channel = vec![0.0; maximum_expected_samples_per_block.max(0) as usize];
         }
     }
@@ -51,10 +51,52 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
         audio: &mut [&mut [f32]],
         midi: Pin<&mut ffi::MidiBufferIterator>,
     ) {
-        if audio.is_empty() {
-            return;
+        // The C++ code ought to have ensured the channel counts match.
+        assert!(audio.len() == self.scratch_buffer.len());
+
+        // TODO: Need to handle the possibility that
+        // maximum_expected_samples_per_block was actually greater
+        // than the total number of samples we were given in this
+        // callback.
+        let num_samples = audio[0].len();
+        assert!(self.scratch_buffer[0].len() == num_samples);
+
+        self.process_midi_messages(midi);
+
+        // Generate the next block of frames from each active voice.
+        let voice_sample_iters = self
+            .voices
+            .iter_mut()
+            .filter(|voice| voice.currently_playing().is_some())
+            .map(|voice| (0..num_samples).map(move |_| voice.next_frame()));
+
+        // Sum up each voice's frames into the scratch buffer.
+        for voice_iter in voice_sample_iters {
+            for (sample_index, frame) in voice_iter.enumerate() {
+                for (channel_index, sample) in frame.iter().enumerate() {
+                    self.scratch_buffer[channel_index][sample_index] += sample;
+                }
+            }
         }
 
+        // Copy the scratch buffer into the output as f32.
+        for (input_channel, output_channel) in self.scratch_buffer.iter().zip(audio.iter_mut()) {
+            for (input_sample, output_sample) in input_channel
+                .iter()
+                .map(|s| (s * 0.075) as f32)
+                .zip(output_channel.iter_mut())
+            {
+                *output_sample = input_sample;
+            }
+        }
+
+        // Reset the scratch buffer.
+        for channel in &mut self.scratch_buffer {
+            channel.fill(0.0);
+        }
+    }
+
+    fn process_midi_messages(&mut self, midi: Pin<&mut ffi::MidiBufferIterator>) {
         self.midi_state.process_midi_messages(midi);
 
         for off in &self.midi_state.notes_turned_off {
@@ -107,41 +149,6 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
             }
 
             assert!(found_unused_voice)
-        }
-
-        // Pull a single frame's worth of samples from each active
-        // voice, then sum them together to get the final list of
-        // samples.
-
-        let voice_sample_iters = self
-            .voices
-            .iter_mut()
-            .filter(|voice| voice.currently_playing().is_some())
-            .map(|voice| (0..audio[0].len()).map(move |_| voice.next().unwrap()));
-
-        // TODO: Ignoring the other channel buffer for now, pretending
-        // we're doing everything in mono
-        let buffer = &mut self.sample_buffer[0];
-
-        // TODO: Need to handle the possibility that
-        // maximum_expected_samples_per_block was actually greater
-        // than the total number of samples we were given in this
-        // callback.
-        assert!(buffer.len() == audio[0].len());
-
-        for voice_iter in voice_sample_iters {
-            for (i, sample) in voice_iter.enumerate() {
-                buffer[i] += sample;
-            }
-        }
-
-        let samples: Vec<f32> = buffer.iter().map(|f| (f * 0.075) as f32).collect();
-        for channel in audio.iter_mut() {
-            channel.copy_from_slice(&samples);
-        }
-
-        for channel in &mut self.sample_buffer {
-            channel.fill(0.0);
         }
     }
 }
