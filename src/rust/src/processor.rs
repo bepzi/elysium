@@ -10,25 +10,25 @@ use crate::phasors::{MidiNote, Voice};
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 const MAX_NUM_VOICES: usize = 16;
 
-pub struct ElysiumAudioProcessor {
+pub struct ElysiumAudioProcessor<const CHANNELS: usize> {
     sample_rate: f64,
     voices: [Voice; MAX_NUM_VOICES],
     midi_state: MidiState,
-    sample_buffer: [Vec<f64>; 2],
+    sample_buffer: [Vec<f64>; CHANNELS],
 }
 
-impl Default for ElysiumAudioProcessor {
+impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
     fn default() -> Self {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
             voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
             midi_state: MidiState::new(),
-            sample_buffer: [Vec::new(), Vec::new()],
+            sample_buffer: array_init::array_init(|_| Vec::new()),
         }
     }
 }
 
-impl ElysiumAudioProcessor {
+impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
     // Will be called on the main thread.
     pub fn prepare_to_play(&mut self, sample_rate: f64, maximum_expected_samples_per_block: i32) {
         self.sample_rate = sample_rate.max(0.0);
@@ -135,7 +135,7 @@ impl ElysiumAudioProcessor {
             }
         }
 
-        let samples: Vec<f32> = channel.iter().map(|f| (f * 0.075) as f32).collect();
+        let samples: Vec<f32> = buffer.iter().map(|f| (f * 0.075) as f32).collect();
         for channel in audio.iter_mut() {
             channel.copy_from_slice(&samples);
         }
