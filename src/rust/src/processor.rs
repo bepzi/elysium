@@ -2,37 +2,50 @@ use core::pin::Pin;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
-use dasp_signal::Signal;
-use wmidi::{MidiMessage, Note, Velocity, U7};
+use wmidi::{Channel, MidiMessage, Note, Velocity};
 
 use crate::ffi;
+use crate::phasors::{MidiNote, Voice};
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
+const MAX_NUM_VOICES: usize = 16;
 
-pub struct ElysiumAudioProcessor {
+pub struct ElysiumAudioProcessor<const CHANNELS: usize> {
     sample_rate: f64,
-    // TODO: Use a datastructure that doesn't allocate
-    voices: HashMap<Note, Box<dyn Signal<Frame = f64>>>,
+    voices: [Voice; MAX_NUM_VOICES],
     midi_state: MidiState,
+    sample_buffer: [Vec<f64>; CHANNELS],
 }
 
-impl ElysiumAudioProcessor {
-    pub fn new() -> Self {
+impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
+    fn default() -> Self {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
-            voices: HashMap::new(),
+            voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
             midi_state: MidiState::new(),
+            sample_buffer: array_init::array_init(|_| Vec::new()),
+        }
+    }
+}
+
+impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
+    // Will be called on the main thread.
+    pub fn prepare_to_play(&mut self, sample_rate: f64, maximum_expected_samples_per_block: i32) {
+        self.sample_rate = sample_rate.max(0.0);
+
+        for voice in &mut self.voices {
+            *voice = Voice::new(self.sample_rate);
+        }
+
+        self.midi_state = MidiState::new();
+
+        for channel in &mut self.sample_buffer {
+            *channel = vec![0.0; maximum_expected_samples_per_block.max(0) as usize];
         }
     }
 
-    // Will be called on the main thread.
-    pub fn prepare_to_play(&mut self, sample_rate: f64, _maximum_expected_samples_per_block: i32) {
-        self.sample_rate = sample_rate.max(0.0);
-        self.voices = HashMap::new();
-        self.midi_state = MidiState::new();
-    }
-
     // Will be called on the audio thread.
+    #[inline(always)]
     pub fn process_block(
         &mut self,
         audio: &mut [&mut [f32]],
@@ -45,43 +58,90 @@ impl ElysiumAudioProcessor {
         self.midi_state.process_midi_messages(midi);
 
         for off in &self.midi_state.notes_turned_off {
-            self.voices.remove(off);
+            for voice in &mut self.voices {
+                if let Some(note) = voice.currently_playing() {
+                    if note.note == *off {
+                        voice.stop_playing();
+                        break;
+                    }
+                }
+            }
         }
 
         for (on, velocity) in &self.midi_state.notes_turned_on {
-            self.voices.insert(
-                *on,
-                // TODO: Don't heap allocate for each NoteOn event
-                Box::new(
-                    dasp_signal::rate(self.sample_rate)
-                        .const_hz(on.to_freq_f64())
-                        .square()
-                        // TODO: Should this be logarithmic rather than linear?
-                        .scale_amp(u8::from(*velocity) as f64 / u8::from(U7::MAX) as f64)
-                        .scale_amp(0.02),
-                ),
-            );
+            let note = MidiNote {
+                channel: Channel::Ch1,
+                note: *on,
+                velocity: *velocity,
+            };
+
+            let mut found_unused_voice = false;
+            for voice in &mut self.voices {
+                if voice.currently_playing().is_none() {
+                    voice.start_playing(note);
+                    found_unused_voice = true;
+                    break;
+                }
+            }
+
+            if !found_unused_voice {
+                // TODO: What I really wanted to do was store a
+                // mutable reference so that I could just break from
+                // the loop and immediately call
+                // start_playing(). Fortunately, this code is the slow
+                // path, so I don't think it matters.
+                let mut least_recently_used = std::time::Instant::now();
+                for voice in &self.voices {
+                    if voice.last_played_at() < least_recently_used {
+                        least_recently_used = voice.last_played_at();
+                    }
+                }
+
+                for voice in &mut self.voices {
+                    if voice.last_played_at() == least_recently_used {
+                        voice.start_playing(note);
+                        found_unused_voice = true;
+                        break;
+                    }
+                }
+            }
+
+            assert!(found_unused_voice)
         }
 
         // Pull a single frame's worth of samples from each active
         // voice, then sum them together to get the final list of
         // samples.
-        let mut equilibrium = vec![0.0f64; audio[0].len()];
 
         let voice_sample_iters = self
             .voices
-            .values_mut()
-            .map(|voice| (0..audio[0].len()).map(move |_| voice.next()));
+            .iter_mut()
+            .filter(|voice| voice.currently_playing().is_some())
+            .map(|voice| (0..audio[0].len()).map(move |_| voice.next().unwrap()));
+
+        // TODO: Ignoring the other channel buffer for now, pretending
+        // we're doing everything in mono
+        let buffer = &mut self.sample_buffer[0];
+
+        // TODO: Need to handle the possibility that
+        // maximum_expected_samples_per_block was actually greater
+        // than the total number of samples we were given in this
+        // callback.
+        assert!(buffer.len() == audio[0].len());
 
         for voice_iter in voice_sample_iters {
             for (i, sample) in voice_iter.enumerate() {
-                equilibrium[i] += sample;
+                buffer[i] += sample;
             }
         }
 
-        let samples: Vec<f32> = equilibrium.into_iter().map(|f| f as f32).collect();
+        let samples: Vec<f32> = buffer.iter().map(|f| (f * 0.075) as f32).collect();
         for channel in audio.iter_mut() {
             channel.copy_from_slice(&samples);
+        }
+
+        for channel in &mut self.sample_buffer {
+            channel.fill(0.0);
         }
     }
 }
@@ -89,16 +149,23 @@ impl ElysiumAudioProcessor {
 #[derive(Debug)]
 struct MidiState {
     // TODO: Use a datastructure that doesn't allocate
+    //
+    // TODO: Need to take MIDI channels into account too. Should
+    // probably just store entire MidiNote structs.
     notes_turned_on: HashMap<Note, Velocity>,
     notes_turned_off: HashSet<Note>,
 }
 
 impl MidiState {
     fn new() -> Self {
-        Self {
+        let mut s = Self {
             notes_turned_on: HashMap::new(),
             notes_turned_off: HashSet::new(),
-        }
+        };
+
+        s.notes_turned_on.reserve(128);
+        s.notes_turned_off.reserve(128);
+        s
     }
 
     fn process_midi_messages(&mut self, mut midi: Pin<&mut ffi::MidiBufferIterator>) {

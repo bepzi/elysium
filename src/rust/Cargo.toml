@@ -7,17 +7,12 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [lib]
-crate_type = [ "staticlib" ]
+crate_type = [ "staticlib", "lib" ]
 
 [dependencies]
 cxx = "1"
 wmidi = "4"
-
-dasp_sample = "0.11"
-dasp_frame = "0.11"
-dasp_slice = "0.11"
-dasp_signal = { version = "0.11", features = ["envelope"] }
-dasp_envelope = { version = "0.11", features = ["peak"] }
+array-init = "2"
 
 [build-dependencies]
 cxx-build = "1"

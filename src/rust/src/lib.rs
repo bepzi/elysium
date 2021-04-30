@@ -4,8 +4,8 @@
 #![warn(clippy::complexity)]
 #![warn(clippy::perf)]
 
-mod processor;
-use processor::ElysiumAudioProcessor;
+pub mod phasors;
+pub mod processor;
 
 #[cxx::bridge(namespace = "elysium::ffi")]
 mod ffi {
@@ -19,27 +19,29 @@ mod ffi {
     }
 
     extern "Rust" {
-        type ElysiumAudioProcessor;
+        type StereoAudioProcessor;
 
-        #[cxx_name = "createElysiumAudioProcessor"]
-        fn create_elysium_audio_processor() -> Box<ElysiumAudioProcessor>;
+        #[cxx_name = "createStereoAudioProcessor"]
+        fn create_elysium_audio_processor() -> Box<StereoAudioProcessor>;
 
         #[cxx_name = "prepareToPlay"]
         fn prepare_to_play(
-            self: &mut ElysiumAudioProcessor,
+            self: &mut StereoAudioProcessor,
             sample_rate: f64,
             maximum_expected_samples_per_block: i32,
         );
 
         #[cxx_name = "processBlock"]
         fn process_block(
-            self: &mut ElysiumAudioProcessor,
+            self: &mut StereoAudioProcessor,
             audio: &mut [&mut [f32]],
             midi: Pin<&mut MidiBufferIterator>,
         );
     }
 }
 
-fn create_elysium_audio_processor() -> Box<ElysiumAudioProcessor> {
-    Box::new(ElysiumAudioProcessor::new())
+type StereoAudioProcessor = processor::ElysiumAudioProcessor<2>;
+
+fn create_elysium_audio_processor() -> Box<StereoAudioProcessor> {
+    Box::new(StereoAudioProcessor::default())
 }
