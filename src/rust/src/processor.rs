@@ -101,8 +101,8 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
 
         for off in &self.midi_state.notes_turned_off {
             for voice in &mut self.voices {
-                if let Some(note) = voice.currently_playing() {
-                    if note.note == *off {
+                if let Some(playing) = voice.currently_playing() {
+                    if playing.note == *off {
                         voice.stop_playing();
                         break;
                     }
@@ -150,6 +150,12 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
 
             assert!(found_unused_voice)
         }
+
+        for voice in &mut self.voices {
+            if voice.currently_playing().is_some() {
+                voice.set_pitch_bend(self.midi_state.pitch_bend);
+            }
+        }
     }
 }
 
@@ -161,6 +167,7 @@ struct MidiState {
     // probably just store entire MidiNote structs.
     notes_turned_on: HashMap<Note, Velocity>,
     notes_turned_off: HashSet<Note>,
+    pitch_bend: f64,
 }
 
 impl MidiState {
@@ -168,6 +175,7 @@ impl MidiState {
         let mut s = Self {
             notes_turned_on: HashMap::new(),
             notes_turned_off: HashSet::new(),
+            pitch_bend: 0.0,
         };
 
         s.notes_turned_on.reserve(128);
@@ -191,6 +199,9 @@ impl MidiState {
                     MidiMessage::NoteOff(_, note, _) => {
                         self.notes_turned_on.remove(&note);
                         self.notes_turned_off.insert(note);
+                    }
+                    MidiMessage::PitchBendChange(_, pitch_bend) => {
+                        self.pitch_bend = (u16::from(pitch_bend) as f64 / 8192.0) - 1.0;
                     }
                     _ => {}
                 }

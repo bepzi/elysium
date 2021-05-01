@@ -22,7 +22,7 @@ mod ffi {
         type StereoAudioProcessor;
 
         #[cxx_name = "createStereoAudioProcessor"]
-        fn create_elysium_audio_processor() -> Box<StereoAudioProcessor>;
+        fn create_stereo_audio_processor() -> Box<StereoAudioProcessor>;
 
         #[cxx_name = "prepareToPlay"]
         fn prepare_to_play(
@@ -42,6 +42,6 @@ mod ffi {
 
 type StereoAudioProcessor = processor::ElysiumAudioProcessor<2>;
 
-fn create_elysium_audio_processor() -> Box<StereoAudioProcessor> {
+fn create_stereo_audio_processor() -> Box<StereoAudioProcessor> {
     Box::new(StereoAudioProcessor::default())
 }
