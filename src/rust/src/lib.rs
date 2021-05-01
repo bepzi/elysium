@@ -4,8 +4,9 @@
 #![warn(clippy::complexity)]
 #![warn(clippy::perf)]
 
-pub mod phasors;
+pub mod phasor;
 pub mod processor;
+pub mod voice;
 
 #[cxx::bridge(namespace = "elysium::ffi")]
 mod ffi {

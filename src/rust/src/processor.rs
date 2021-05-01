@@ -5,7 +5,8 @@ use std::convert::TryFrom;
 use wmidi::{Channel, MidiMessage, Note, Velocity};
 
 use crate::ffi;
-use crate::phasors::{MidiNote, Voice};
+use crate::phasor::MidiNote;
+use crate::voice::Voice;
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 const MAX_NUM_VOICES: usize = 16;
@@ -19,7 +20,6 @@ pub struct ElysiumAudioProcessor<const CHANNELS: usize> {
 
 impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
     fn default() -> Self {
-        assert!(CHANNELS > 0);
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
             midi_state: MidiState::new(),
@@ -67,7 +67,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
         let voice_sample_iters = self
             .voices
             .iter_mut()
-            .filter(|voice| voice.currently_playing().is_some())
+            .filter(|voice| voice.will_produce_values())
             .map(|voice| (0..num_samples).map(move |_| voice.next_frame()));
 
         // Sum up each voice's frames into the scratch buffer.
@@ -118,27 +118,18 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
             };
 
             let mut found_unused_voice = false;
+            let mut least_recently_used = std::time::Instant::now();
             for voice in &mut self.voices {
                 if voice.currently_playing().is_none() {
                     voice.start_playing(note);
                     found_unused_voice = true;
                     break;
+                } else if voice.last_played_at() < least_recently_used {
+                    least_recently_used = voice.last_played_at();
                 }
             }
 
             if !found_unused_voice {
-                // TODO: What I really wanted to do was store a
-                // mutable reference so that I could just break from
-                // the loop and immediately call
-                // start_playing(). Fortunately, this code is the slow
-                // path, so I don't think it matters.
-                let mut least_recently_used = std::time::Instant::now();
-                for voice in &self.voices {
-                    if voice.last_played_at() < least_recently_used {
-                        least_recently_used = voice.last_played_at();
-                    }
-                }
-
                 for voice in &mut self.voices {
                     if voice.last_played_at() == least_recently_used {
                         voice.start_playing(note);
