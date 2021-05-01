@@ -66,7 +66,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
         let voice_sample_iters = self
             .voices
             .iter_mut()
-            .filter(|voice| voice.will_produce_values())
+            .filter(|voice| voice.is_producing_samples())
             .map(|voice| (0..num_samples).map(move |_| voice.next_frame()));
 
         // Sum up each voice's frames into the scratch buffer.
@@ -100,7 +100,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
 
         for off in &self.midi_state.notes_turned_off {
             for voice in &mut self.voices {
-                if let Some(playing) = voice.currently_playing() {
+                if let Some(playing) = voice.current_note() {
                     if playing.note == *off {
                         voice.stop_playing();
                         break;
@@ -119,7 +119,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
             let mut found_unused_voice = false;
             let mut least_recently_used = std::time::Instant::now();
             for voice in &mut self.voices {
-                if voice.currently_playing().is_none() {
+                if !voice.is_producing_samples() {
                     voice.start_playing(note);
                     found_unused_voice = true;
                     break;
@@ -142,7 +142,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
         }
 
         for voice in &mut self.voices {
-            if voice.currently_playing().is_some() {
+            if voice.current_note().is_some() {
                 voice.set_pitch_bend(self.midi_state.pitch_bend);
             }
         }

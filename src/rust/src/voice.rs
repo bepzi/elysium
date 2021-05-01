@@ -68,6 +68,11 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
     }
 
     /// Tells this voice to start playing a certain MIDI note.
+    ///
+    /// Note that this will interrupt any current sample generation if
+    /// the voice was not playing a MIDI note but still had meaningful
+    /// values to generate. In general, prefer calling this function
+    /// when `is_producing_samples()` returns `false`.
     pub fn start_playing(&mut self, note: MidiNote) {
         self.stop_playing();
 
@@ -79,6 +84,11 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
     }
 
     /// Tells this voice to stop playing any MIDI notes.
+    ///
+    /// Note that some voices may still have more samples left to
+    /// produce (e.g, for a release effect), and
+    /// `is_producing_samples()` may still return `true` after calling
+    /// this function.
     pub fn stop_playing(&mut self) {
         self.playing = None;
     }
@@ -87,16 +97,16 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
     ///
     /// Note that a voice may still produce meaningful sample values
     /// even if this returns `None`.
-    pub fn currently_playing(&self) -> Option<MidiNote> {
+    pub fn current_note(&self) -> Option<MidiNote> {
         self.playing
     }
 
     /// Returns true if a call to `next_frame()` would produce any
     /// meaningful values.
-    pub fn will_produce_values(&self) -> bool {
+    pub fn is_producing_samples(&self) -> bool {
         // TODO: This is where we can distinguish between voices that
         // still have a tail (e.g, ADSR release) but aren't
-        // technically playing anything.
+        // technically playing a note.
         self.playing.is_some()
     }
 
@@ -113,6 +123,10 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
     /// If the voice isn't currently active, an array of zeroes will
     /// be returned.
     pub fn next_frame(&mut self) -> [f64; CHANNELS] {
+        if !self.is_producing_samples() {
+            return [0.0; CHANNELS];
+        }
+
         if let Some(playing) = self.playing {
             // TODO: Obviously this should be more interesting than a
             // mono sine wave. How should we handle things like
@@ -122,6 +136,8 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
             let value = value * playing.velocity;
             [value; CHANNELS]
         } else {
+            // This is where most voices would handle things like
+            // release effects, etc.
             [0.0; CHANNELS]
         }
     }
