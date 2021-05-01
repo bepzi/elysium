@@ -1,15 +1,3 @@
-use wmidi::{Channel, Note, Velocity};
-
-/// Alias for a played MIDI note.
-#[derive(Debug, Copy, Clone)]
-pub struct MidiNote {
-    pub channel: Channel,
-    pub note: Note,
-    pub velocity: Velocity,
-}
-
-// =============================================================================
-
 /// Semantic alias for frequency.
 pub type Frequency = f64;
 

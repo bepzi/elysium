@@ -2,11 +2,10 @@ use core::pin::Pin;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
-use wmidi::{Channel, MidiMessage, Note, Velocity};
+use wmidi::{Channel, MidiMessage, Note, U7};
 
 use crate::ffi;
-use crate::phasor::MidiNote;
-use crate::voice::Voice;
+use crate::voice::{MidiNote, Voice};
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 const MAX_NUM_VOICES: usize = 16;
@@ -153,10 +152,10 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
 #[derive(Debug)]
 struct MidiState {
     // TODO: Use a datastructure that doesn't allocate
-    //
-    // TODO: Need to take MIDI channels into account too. Should
+
+    // TODO: Might need to take MIDI channels into account too. Should
     // probably just store entire MidiNote structs.
-    notes_turned_on: HashMap<Note, Velocity>,
+    notes_turned_on: HashMap<Note, f64>,
     notes_turned_off: HashSet<Note>,
     pitch_bend: f64,
 }
@@ -184,9 +183,11 @@ impl MidiState {
                 match message {
                     MidiMessage::NoteOn(_, note, velocity) => {
                         self.notes_turned_off.insert(note);
-                        self.notes_turned_on.insert(note, velocity);
-                    }
 
+                        // TODO: Should velocity sensing be logarithmic instead of linear?
+                        self.notes_turned_on
+                            .insert(note, u8::from(velocity) as f64 / u8::from(U7::MAX) as f64);
+                    }
                     MidiMessage::NoteOff(_, note, _) => {
                         self.notes_turned_on.remove(&note);
                         self.notes_turned_off.insert(note);

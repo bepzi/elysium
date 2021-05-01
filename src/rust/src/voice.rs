@@ -1,6 +1,14 @@
-use crate::phasor::{Frequency, MidiNote, Phasor};
+use wmidi::{Channel, Note};
 
-use wmidi::U7;
+use crate::phasor::{Frequency, Phasor};
+
+/// Alias for a played MIDI note.
+#[derive(Debug, Copy, Clone)]
+pub struct MidiNote {
+    pub channel: Channel,
+    pub note: Note,
+    pub velocity: f64,
+}
 
 const BEND_SEMITONES: i8 = 2;
 
@@ -11,7 +19,6 @@ pub struct Voice<const CHANNELS: usize> {
     phasor: Phasor,
     last_played_at: std::time::Instant,
     playing: Option<MidiNote>,
-    velocity_f64: f64,
     pitch_bend: f64,
 }
 
@@ -25,7 +32,6 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
             phasor: Phasor::new(sample_rate, 0.0),
             last_played_at: std::time::Instant::now(),
             playing: None,
-            velocity_f64: 0.0,
             pitch_bend: 0.0,
         }
     }
@@ -67,8 +73,6 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
 
         self.last_played_at = std::time::Instant::now();
         self.playing = Some(note);
-        // TODO: Should velocity sensing be logarithmic instead of linear?
-        self.velocity_f64 = u8::from(note.velocity) as f64 / u8::from(U7::MAX) as f64;
 
         self.phasor.reset();
         self.update_freq();
@@ -109,13 +113,13 @@ impl<const CHANNELS: usize> Voice<CHANNELS> {
     /// If the voice isn't currently active, an array of zeroes will
     /// be returned.
     pub fn next_frame(&mut self) -> [f64; CHANNELS] {
-        if self.playing.is_some() {
+        if let Some(playing) = self.playing {
             // TODO: Obviously this should be more interesting than a
             // mono sine wave. How should we handle things like
             // realtime parameters and complex waveforms?
             let value = self.phasor.next_phase();
             let value = (value * 2.0 * std::f64::consts::PI).sin();
-            let value = value * self.velocity_f64;
+            let value = value * playing.velocity;
             [value; CHANNELS]
         } else {
             [0.0; CHANNELS]
