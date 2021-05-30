@@ -1,8 +1,8 @@
 #pragma once
 
 #include "elysium_rust.hpp"
+#include "macros.hpp"
 #include "owning_mutex.hpp"
-#include "utils.hpp"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 

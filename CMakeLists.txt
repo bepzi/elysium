@@ -1,21 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 
-# Set a default build type if none was specified
-set(default_build_type "RelWithDebInfo")
-
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
-      STRING "Choose the type of build." FORCE)
-  # Set the possible values of build type for cmake-gui
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
-
 project(ELYSIUM
   VERSION 0.1.0
   DESCRIPTION "A polyphonic synthesizer with Rust guts."
   LANGUAGES CXX)
+
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
+include(defines)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -47,11 +38,20 @@ set_target_properties(Elysium PROPERTIES
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF)
 
-target_sources(Elysium PRIVATE
-  src/ui/elysium.cpp)
+set(Elysium_sources
+  src/cpp/elysium.cpp
+  src/cpp/elysium.hpp
+  src/cpp/macros.hpp
+  src/cpp/owning_mutex.hpp)
+
+target_sources(Elysium PUBLIC ${Elysium_sources})
+set_source_files_properties(${Elysium_sources}
+  PROPERTIES
+  COMPILE_OPTIONS
+  ${cxx_compiler_warnings})
 
 target_include_directories(Elysium PUBLIC
-  src/ui)
+  src/cpp)
 
 target_compile_definitions(Elysium PUBLIC
   JUCE_DISPLAY_SPLASH_SCREEN=0
@@ -70,25 +70,19 @@ target_link_libraries(Elysium
   PRIVATE
   juce::juce_audio_basics
   juce::juce_audio_devices
-  # juce::juce_audio_formats
   juce::juce_audio_plugin_client
   juce::juce_audio_processors
   juce::juce_audio_utils
   juce::juce_core
-  # juce::juce_data_structures
-  # juce::juce_events
   juce::juce_graphics
   juce::juce_gui_basics
-  # juce::juce_gui_extra
   juce::juce_opengl
 
   elysium_rust
 
   PUBLIC
   juce::juce_recommended_config_flags
-  juce::juce_recommended_lto_flags
-  # juce::juce_recommended_warning_flags
-  )
+  juce::juce_recommended_lto_flags)
 
 if(WIN32)
   target_link_libraries(Elysium PRIVATE
@@ -102,18 +96,18 @@ get_target_property(cargo-dir elysium_rust CARGO_DIR)
 get_target_property(cargo-flags elysium_rust CARGO_FLAGS)
 set(cargo-toml ${CMAKE_SOURCE_DIR}/src/rust/Cargo.toml)
 
-file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.c??")
-file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.h??")
-
 set(header-filter-regex "${CMAKE_SOURCE_DIR}/src/.+\.h(pp)?")
 add_custom_target(lint
-  COMMAND clang-tidy --header-filter=${header-filter-regex} ${cxx-sources}
+  COMMAND clang-tidy --header-filter=${header-filter-regex} ${Elysium_sources}
   COMMAND cargo clippy ${cargo-flags} --target-dir ${cargo-dir} --manifest-path ${cargo-toml}
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   COMMENT "Running 'clang-tidy' and 'cargo clippy' on C++ and Rust sources"
   VERBATIM)
 
 add_dependencies(lint elysium_rust)
+
+file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.c??")
+file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.h??")
 
 add_custom_target(format
   COMMAND clang-format -i -style=file ${cxx-sources} ${cxx-headers}
