@@ -72,10 +72,10 @@ private:
     // blocking the audio thread!
     OwningMutex<rust::Box<ffi::StereoAudioProcessor>> impl;
 
-    static constexpr size_t CHANNELS = 2;
+    static constexpr size_t CHANNELS {2};
     std::array<rust::Slice<float>, CHANNELS> channels;
 
-    size_t expectedNumSamples;
+    size_t expectedNumSamples {0};
 };
 
 } // namespace elysium

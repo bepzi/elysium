@@ -18,12 +18,16 @@ static constexpr auto *NUM_SAMPLES_WARNING =
         "The host told the plugin to expect at most %zu samples, "
         "but gave %zu instead.\n";
 
+static inline size_t clamp_cast(int i)
+{
+    return static_cast<size_t>(std::max(i, 0));
+}
+
 namespace elysium {
 
 ElysiumAudioProcessor::ElysiumAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true)),
-      impl(ffi::createStereoAudioProcessor()),
-      expectedNumSamples(0)
+      impl(ffi::createStereoAudioProcessor())
 {
     static_assert(CHANNELS > 0);
 }
@@ -59,7 +63,7 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
         std::abort();
     }
 
-    const auto numChannels = static_cast<size_t>(std::max(buffer.getNumChannels(), 0));
+    const auto numChannels = clamp_cast(buffer.getNumChannels());
     if (ELYSIUM_UNLIKELY(numChannels != CHANNELS)) {
         // For some reason the host gave us a different buffer size than we asked for??
         std::fprintf(stderr, NUM_CHANNELS_WARNING, CHANNELS, numChannels);
@@ -67,16 +71,18 @@ void ElysiumAudioProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer 
         std::abort();
     }
 
-    const auto numSamples = static_cast<size_t>(std::max(buffer.getNumSamples(), 0));
+    const auto numSamples = clamp_cast(buffer.getNumSamples());
     if (ELYSIUM_UNLIKELY(numSamples > expectedNumSamples)) {
         // For some reason the host gave us more samples than it told us to expect??
+        // (this is bad because we can't realloc more space for these samples from
+        // the audio thread, it would have to be done on the main thread.)
         std::fprintf(stderr, NUM_SAMPLES_WARNING, expectedNumSamples, numSamples);
         buffer.clear();
         std::abort();
     }
 
     for (size_t i = 0; i < numChannels; ++i)
-        channels[i] = { buffer.getWritePointer(i), numSamples };
+        channels[i] = { buffer.getWritePointer(static_cast<int>(i)), numSamples };
 
     rust::Slice<rust::Slice<float>> audioData = { channels.data(), numChannels };
     ffi::MidiBufferIterator midiIter = { midiMessages.cbegin(), midiMessages.cend() };
