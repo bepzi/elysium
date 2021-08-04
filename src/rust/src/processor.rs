@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use wmidi::{Channel, MidiMessage, Note, U7};
 
 use crate::ffi;
-use crate::voice::{MidiNote, Voice};
+use crate::voice::{MidiNote, Voice, VoiceState};
 
 const DEFAULT_SAMPLE_RATE: f64 = 41000.0;
 const MAX_NUM_VOICES: usize = 16;
@@ -17,12 +17,28 @@ pub struct ElysiumAudioProcessor<const CHANNELS: usize> {
     scratch_buffer: [Vec<f64>; CHANNELS],
 }
 
+fn generate_sine<const CHANNELS: usize>(state: &mut VoiceState) -> [f64; CHANNELS] {
+    if let Some(playing) = state.playing {
+        // TODO: Obviously this should be more interesting than a
+        // mono sine wave. How should we handle things like
+        // realtime parameters and complex waveforms?
+        let value = state.phasor.next_phase();
+        let value = (value * 2.0 * std::f64::consts::PI).sin();
+        let value = value * playing.velocity;
+        [value; CHANNELS]
+    } else {
+        // This is where most voices would handle things like
+        // release effects, etc.
+        [0.0; CHANNELS]
+    }
+}
+
 impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
     fn default() -> Self {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
             midi_state: MidiState::new(),
-            voices: [Voice::new(DEFAULT_SAMPLE_RATE); MAX_NUM_VOICES],
+            voices: array_init::array_init(|_| Voice::new(DEFAULT_SAMPLE_RATE, Box::new(generate_sine))),
             scratch_buffer: array_init::array_init(|_| Vec::new()),
         }
     }
@@ -35,7 +51,7 @@ impl<const CHANNELS: usize> ElysiumAudioProcessor<CHANNELS> {
         self.midi_state = MidiState::new();
 
         for voice in &mut self.voices {
-            *voice = Voice::new(self.sample_rate);
+            *voice = Voice::new(self.sample_rate, Box::new(generate_sine));
         }
 
         for channel in &mut self.scratch_buffer {
