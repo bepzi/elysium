@@ -34,8 +34,10 @@ add_custom_target(lint
 
 add_dependencies(lint elysium_rust)
 
-file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.c??")
-file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false "${CMAKE_SOURCE_DIR}/src/*.h??")
+file(GLOB_RECURSE cxx-sources LIST_DIRECTORIES false
+  "${CMAKE_SOURCE_DIR}/elysium_cpp/*.c??" "${CMAKE_SOURCE_DIR}/elysium_ffi/*.c??")
+file(GLOB_RECURSE cxx-headers LIST_DIRECTORIES false
+  "${CMAKE_SOURCE_DIR}/elysium_cpp/*.h??" "${CMAKE_SOURCE_DIR}/elysium_ffi/*.h??")
 
 add_custom_target(format
   COMMAND clang-format -i -style=file ${cxx-sources} ${cxx-headers}
