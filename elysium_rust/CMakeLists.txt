@@ -29,7 +29,7 @@ add_custom_command(
 
 add_library(elysium_rust STATIC
   ${cxxbridge-generated-cpp}
-  wrappers/audio_basics.cpp)
+  ../elysium_ffi/audio_basics.cpp)
 
 set_target_properties(elysium_rust PROPERTIES
   CARGO_DIR ${cargo-target-dir}
@@ -46,7 +46,7 @@ target_include_directories(elysium_rust PUBLIC
 
   # We need to find our own headers to wrap JUCE C++ into bindable
   # C++, and the generated bindings will include them too.
-  wrappers)
+  ../elysium_ffi)
 
 set_target_properties(elysium_rust PROPERTIES
   CXX_STANDARD 20

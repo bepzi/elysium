@@ -5,7 +5,7 @@ project(ELYSIUM
   DESCRIPTION "A polyphonic synthesizer with Rust guts."
   LANGUAGES CXX)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 include(defines)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -14,7 +14,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ==================================================
 
 add_subdirectory(third_party/JUCE)
-add_subdirectory(src/rust)
+add_subdirectory(elysium_rust)
 
 # ==================================================
 
@@ -39,10 +39,10 @@ set_target_properties(Elysium PROPERTIES
   CXX_EXTENSIONS OFF)
 
 set(Elysium_sources
-  src/cpp/elysium.cpp
-  src/cpp/elysium.hpp
-  src/cpp/macros.hpp
-  src/cpp/owning_mutex.hpp)
+  elysium_cpp/elysium.cpp
+  elysium_cpp/elysium.hpp
+  elysium_cpp/macros.hpp
+  elysium_cpp/owning_mutex.hpp)
 
 target_sources(Elysium PUBLIC ${Elysium_sources})
 set_source_files_properties(${Elysium_sources}
@@ -51,7 +51,7 @@ set_source_files_properties(${Elysium_sources}
   ${cxx_compiler_warnings})
 
 target_include_directories(Elysium PUBLIC
-  src/cpp)
+  elysium_cpp)
 
 target_compile_definitions(Elysium PUBLIC
   JUCE_DISPLAY_SPLASH_SCREEN=0
@@ -94,7 +94,7 @@ endif()
 
 get_target_property(cargo-dir elysium_rust CARGO_DIR)
 get_target_property(cargo-flags elysium_rust CARGO_FLAGS)
-set(cargo-toml ${CMAKE_SOURCE_DIR}/src/rust/Cargo.toml)
+set(cargo-toml ${CMAKE_SOURCE_DIR}/elysium_rust/Cargo.toml)
 
 set(header-filter-regex "${CMAKE_SOURCE_DIR}/src/.+\.h(pp)?")
 add_custom_target(lint
