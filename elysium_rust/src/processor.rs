@@ -38,7 +38,9 @@ impl<const CHANNELS: usize> Default for ElysiumAudioProcessor<CHANNELS> {
         Self {
             sample_rate: DEFAULT_SAMPLE_RATE,
             midi_state: MidiState::new(),
-            voices: array_init::array_init(|_| Voice::new(DEFAULT_SAMPLE_RATE, Box::new(generate_sine))),
+            voices: array_init::array_init(|_| {
+                Voice::new(DEFAULT_SAMPLE_RATE, Box::new(generate_sine))
+            }),
             scratch_buffer: array_init::array_init(|_| Vec::new()),
         }
     }
